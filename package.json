@@ -1,12 +1,9 @@
 {
-  "name": "ww-gdm-projects-frontend",
+  "name": "gdm-projects-frontend",
   "version": "1.0.0",
   "scripts": {
-    "build": "weweb build name=ww-gdm-projects-frontend type=element",
+    "build": "weweb build name=gdm-projects-frontend type=element",
     "serve": "weweb serve"
-  },
-  "dependencies": {
-    "vue": "^3.x"
   },
   "devDependencies": {
     "@weweb/cli": "latest"
