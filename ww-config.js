@@ -1,16 +1,16 @@
 export default {
   editor: {
-    label: { en: 'GDM Projects Frontend' },
+    label: { en: 'GDM Projects' },
     icon: 'folder',
     customSettingsPropertiesOrder: [
-      'disableInteractions',
+      'viewMode',
       { label: 'Data', isCollapsible: true, properties: ['projectsData', 'clientsData', 'idFormula', 'titleFormula', 'typeFormula', 'statusFormula', 'startDateFormula', 'endDateFormula', 'agreementLinkFormula', 'clientIdFormula'] },
       { label: 'Layout', isCollapsible: true, properties: ['layoutMode'] },
     ],
     customStylePropertiesOrder: [
       { label: 'Card', isCollapsible: true, properties: ['cardBackgroundColor', 'cardBorderRadius', 'cardPadding'] },
-      { label: 'Status badges', isCollapsible: true, properties: ['statusActiveColor', 'statusCompletedColor', 'statusPendingColor'] },
-      { label: 'Typography', isCollapsible: true, properties: ['fontFamily', 'fontSize', 'titleColor'] },
+      { label: 'Status colors', isCollapsible: true, properties: ['statusActiveColor', 'statusCompletedColor', 'statusPendingColor'] },
+      { label: 'Typography', isCollapsible: true, properties: ['fontFamily', 'fontSize', 'titleColor', 'accentColor'] },
     ],
   },
   triggerEvents: [
@@ -20,16 +20,27 @@ export default {
       event: { value: { project: null } },
       default: true,
     },
+    {
+      name: 'onDeleteProject',
+      label: { en: 'On delete project (admin)' },
+      event: { value: { id: null, title: null } },
+    },
   ],
   properties: {
-    disableInteractions: {
-      label: { en: 'Disable interactions' },
-      type: 'OnOff',
+    viewMode: {
+      label: { en: 'View mode' },
+      type: 'TextSelect',
       section: 'settings',
-      defaultValue: false,
+      options: {
+        options: [
+          { value: 'admin', label: { en: 'Admin – Full details + actions' } },
+          { value: 'client', label: { en: 'Client – Clean overview' } },
+        ],
+      },
+      defaultValue: 'admin',
       bindable: true,
       /* wwEditor:start */
-      bindingValidation: { type: 'boolean', tooltip: 'When true, project cards are not clickable' },
+      bindingValidation: { type: 'string', tooltip: '"admin" or "client"' },
       /* wwEditor:end */
     },
     projectsData: {
@@ -133,13 +144,13 @@ export default {
       hidden: (content, sidepanelContent, boundProps) => !boundProps?.projectsData,
     },
     layoutMode: {
-      label: { en: 'Layout' },
+      label: { en: 'Card layout' },
       type: 'TextSelect',
       section: 'settings',
       options: {
         options: [
-          { value: 'list', label: { en: 'Card list' } },
-          { value: 'grid', label: { en: 'Card grid' } },
+          { value: 'list', label: { en: 'List (full width)' } },
+          { value: 'grid', label: { en: 'Grid (2-3 columns)' } },
         ],
       },
       defaultValue: 'list',
@@ -159,7 +170,7 @@ export default {
       type: 'Length',
       section: 'style',
       options: { unitChoices: [{ value: 'px', label: 'px', min: 0, max: 24 }] },
-      defaultValue: '10px',
+      defaultValue: '12px',
       bindable: true,
     },
     cardPadding: {
@@ -171,33 +182,33 @@ export default {
       bindable: true,
     },
     statusActiveColor: {
-      label: { en: 'Active status color' },
+      label: { en: 'Active / in-progress color' },
       type: 'Color',
       section: 'style',
       defaultValue: '#0d9488',
       bindable: true,
       /* wwEditor:start */
-      bindingValidation: { cssSupports: 'color', type: 'string', tooltip: 'Active/in-progress status' },
+      bindingValidation: { cssSupports: 'color', type: 'string', tooltip: 'Active status badge' },
       /* wwEditor:end */
     },
     statusCompletedColor: {
-      label: { en: 'Completed status color' },
+      label: { en: 'Completed color' },
       type: 'Color',
       section: 'style',
       defaultValue: '#10b981',
       bindable: true,
       /* wwEditor:start */
-      bindingValidation: { cssSupports: 'color', type: 'string', tooltip: 'Completed status' },
+      bindingValidation: { cssSupports: 'color', type: 'string', tooltip: 'Completed status badge' },
       /* wwEditor:end */
     },
     statusPendingColor: {
-      label: { en: 'Pending status color' },
+      label: { en: 'Pending / other color' },
       type: 'Color',
       section: 'style',
       defaultValue: '#f59e0b',
       bindable: true,
       /* wwEditor:start */
-      bindingValidation: { cssSupports: 'color', type: 'string', tooltip: 'Pending status' },
+      bindingValidation: { cssSupports: 'color', type: 'string', tooltip: 'Pending status badge' },
       /* wwEditor:end */
     },
     fontFamily: {
@@ -217,13 +228,23 @@ export default {
       responsive: true,
     },
     titleColor: {
-      label: { en: 'Title color' },
+      label: { en: 'Project title color' },
       type: 'Color',
       section: 'style',
       defaultValue: '#1e293b',
       bindable: true,
       /* wwEditor:start */
       bindingValidation: { cssSupports: 'color', type: 'string', tooltip: 'Project title color' },
+      /* wwEditor:end */
+    },
+    accentColor: {
+      label: { en: 'Link / accent color' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#0d9488',
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: { cssSupports: 'color', type: 'string', tooltip: 'Agreement link color' },
       /* wwEditor:end */
     },
   },
