@@ -1,8 +1,8 @@
 {
-  "name": "gdm-projects-frontend",
-  "version": "1.0.0",
+  "name": "ww-gdm-projects-frontend",
+  "version": "1.0.1",
   "scripts": {
-    "build": "weweb build name=gdm-projects-frontend type=element",
+    "build": "weweb build",
     "serve": "weweb serve"
   },
   "devDependencies": {
