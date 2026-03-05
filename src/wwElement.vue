@@ -109,13 +109,6 @@
                   class="gdm-gantt__weekline"
                   :style="{ left: wk.pct + '%' }"
                 />
-                <!-- Month lines — darkest, thickest -->
-                <div
-                  v-for="mo in ganttData[proj.id].months"
-                  :key="'mo' + mo.ts"
-                  class="gdm-gantt__monthline"
-                  :style="{ left: mo.pct + '%' }"
-                />
                 <!-- Today line with inline label -->
                 <div
                   v-if="ganttData[proj.id].todayPct >= 0 && ganttData[proj.id].todayPct <= 100"
@@ -394,8 +387,8 @@ const computeGantt = (rows, milestones = []) => {
   });
 
   const minDate = mondayOf(new Date(Math.min(...allMsDates)));
-  // End: exactly the last data date + 1 day so the final bar/milestone sits flush at the right edge
-  const maxDate = new Date(Math.max(...allMsDates) + 86400000);
+  // End: last data date + exactly 1 week of breathing room
+  const maxDate = new Date(Math.max(...allMsDates) + 7 * 86400000);
 
   const totalMs = maxDate.getTime() - minDate.getTime();
   if (totalMs <= 0) return null;
@@ -423,15 +416,6 @@ const computeGantt = (rows, milestones = []) => {
   }
 
   const todayPct = ((Date.now() - minDate.getTime()) / totalMs) * 100;
-
-  // Month-start ticks — 1st of each month in range
-  const months = [];
-  let mCur = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-  while (mCur.getTime() <= maxDate.getTime()) {
-    const pct = ((mCur.getTime() - minDate.getTime()) / totalMs) * 100;
-    months.push({ ts: mCur.getTime(), pct });
-    mCur = new Date(mCur.getFullYear(), mCur.getMonth() + 1, 1);
-  }
 
   // Daily ticks — grid lines and day-letter header
   const days = [];
@@ -468,7 +452,6 @@ const computeGantt = (rows, milestones = []) => {
   return {
     weeks,
     visWeeks,
-    months,
     days,
     bars,
     todayPct,
@@ -681,6 +664,10 @@ export default {
       '--gdm-accent': props.content?.accentColor || '#0d9488',
       '--gdm-title': props.content?.titleColor || '#1e293b',
       '--gdm-text': props.content?.textColor || '#475569',
+      '--gdm-day-line': props.content?.ganttDayLineColor || '#e8eef4',
+      '--gdm-week-line': props.content?.ganttWeekLineColor || '#b8c8d8',
+      '--gdm-today-line': props.content?.ganttTodayLineColor || '#0d9488',
+      '--gdm-bar-radius': props.content?.barBorderRadius || '5px',
       minHeight: '120px',
     }));
 
@@ -744,11 +731,8 @@ export default {
 /* ─── Card ─── */
 .gdm-proj-card {
   border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   overflow: visible;
-  transition: box-shadow 0.2s;
 
-  &:hover { box-shadow: 0 6px 24px rgba(0, 0, 0, 0.09); }
   &--preview { opacity: 0.85; }
 }
 
@@ -946,50 +930,40 @@ export default {
   }
 }
 
-/* ── Grid layers (all behind bars) ──────────────────── */
+/* ── Grid layers ──────────────────────────────────── */
 
-/* Day lines — very light, thinnest, z1 */
+/* Day lines — lightest, behind everything */
 .gdm-gantt__dayline {
   position: absolute;
   top: 0; bottom: 0;
   width: 1px;
-  background: #e8eef4;
+  background: var(--gdm-day-line);
   z-index: 1;
   pointer-events: none;
 }
 
-/* Week lines (Mondays) — medium grey, z2 */
+/* Week lines (Mondays) — medium */
 .gdm-gantt__weekline {
   position: absolute;
   top: 0; bottom: 0;
   width: 1px;
-  background: #b8c8d8;
+  background: var(--gdm-week-line);
   z-index: 2;
   pointer-events: none;
 }
 
-/* Month lines — dark slate, 2px solid, clearly structural, z3 */
-.gdm-gantt__monthline {
-  position: absolute;
-  top: 0; bottom: 0;
-  width: 2px;
-  background: #546e7a;
-  z-index: 3;
-  pointer-events: none;
-}
-
-/* Today line — sits behind bars, label at bottom with milestones, z3 */
+/* Today line — highest priority, above bars */
 .gdm-gantt__today-line {
   position: absolute;
   top: 0; bottom: 0;
   width: 2px;
-  background: var(--gdm-accent);
-  opacity: 0.7;
-  z-index: 3;
+  background: var(--gdm-today-line);
+  opacity: 0.85;
+  z-index: 8;
   overflow: visible;
 }
 
-/* ── Today label — at bottom of chart, same row as milestone labels ── */
+/* Today label — bottom of chart, same row as milestone labels */
 .gdm-gantt__today-tag {
   position: absolute;
   top: calc(100% + 6px);
@@ -999,40 +973,37 @@ export default {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--gdm-accent);
-  background: color-mix(in srgb, var(--gdm-accent) 10%, #fff 90%);
-  border: 1.5px solid color-mix(in srgb, var(--gdm-accent) 35%, transparent);
+  color: var(--gdm-today-line);
+  background: color-mix(in srgb, var(--gdm-today-line) 10%, #fff 90%);
+  border: 1.5px solid color-mix(in srgb, var(--gdm-today-line) 35%, transparent);
   padding: 2px 7px;
   border-radius: 4px;
   white-space: nowrap;
   line-height: 1.7;
   pointer-events: none;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
-  z-index: 8;
+  z-index: 10;
 }
 
-/* ── Bars — above all grid lines ── */
-
-/* Bar wrapper z5 — on top of all grid lines */
+/* ── Bars — above grid lines, below today ── */
 .gdm-gantt__bar-wrap {
   position: absolute;
   height: 24px;
-  z-index: 5;
+  z-index: 4;
   cursor: default;
 
-  &:hover .gdm-gantt__bar { opacity: 1; filter: brightness(1.07); box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  &:hover .gdm-gantt__bar { opacity: 1; filter: brightness(1.07); }
 }
 
 /* Visual bar */
 .gdm-gantt__bar {
   width: 100%;
   height: 100%;
-  border-radius: 5px;
+  border-radius: var(--gdm-bar-radius, 5px);
   display: flex;
   align-items: center;
   overflow: hidden;
   opacity: 0.9;
-  transition: opacity 0.15s, filter 0.15s, box-shadow 0.15s;
+  transition: opacity 0.15s, filter 0.15s;
 }
 
 .gdm-gantt__bar-label {
@@ -1090,12 +1061,12 @@ export default {
 .gdm-gantt__tip-icon { width: 11px; height: 11px; flex-shrink: 0; color: #64748b; }
 .gdm-gantt__tip-arrow { font-size: 0.6875rem; color: #475569; }
 
-/* ─── Milestone markers — lines behind bars, labels below at z8 ─── */
+/* ─── Milestone markers — lines behind bars (z4), labels at bottom ─── */
 .gdm-gantt__milestone {
   position: absolute;
   top: 0;
   bottom: 0;
-  z-index: 3; /* behind bars (z5) */
+  z-index: 3; /* behind bars (z4) */
   pointer-events: none;
   overflow: visible;
 }
@@ -1127,8 +1098,7 @@ export default {
   padding: 2px 7px;
   line-height: 1.7;
   pointer-events: none;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.07);
-  z-index: 8;
+  z-index: 9;
 }
 
 .gdm-gantt__empty {

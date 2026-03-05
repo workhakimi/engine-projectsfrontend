@@ -8,6 +8,7 @@ export default {
     ],
     customStylePropertiesOrder: [
       { label: 'Card', isCollapsible: true, properties: ['cardBackgroundColor', 'cardBorderRadius', 'cardPadding'] },
+      { label: 'Gantt', isCollapsible: true, properties: ['barBorderRadius', 'ganttDayLineColor', 'ganttWeekLineColor', 'ganttTodayLineColor'] },
       { label: 'Typography', isCollapsible: true, properties: ['fontFamily', 'fontSize', 'titleColor', 'accentColor'] },
     ],
   },
@@ -114,6 +115,44 @@ export default {
       bindable: true,
       /* wwEditor:start */
       bindingValidation: { cssSupports: 'color', type: 'string', tooltip: 'Accent / link color' },
+      /* wwEditor:end */
+    },
+    barBorderRadius: {
+      label: { en: 'Bar border radius' },
+      type: 'Length',
+      section: 'style',
+      options: { unitChoices: [{ value: 'px', label: 'px', min: 0, max: 12 }] },
+      defaultValue: '5px',
+      bindable: true,
+    },
+    ganttDayLineColor: {
+      label: { en: 'Day line color' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#e8eef4',
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: { cssSupports: 'color', type: 'string', tooltip: 'Daily grid line colour' },
+      /* wwEditor:end */
+    },
+    ganttWeekLineColor: {
+      label: { en: 'Week line color' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#b8c8d8',
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: { cssSupports: 'color', type: 'string', tooltip: 'Weekly (Monday) grid line colour' },
+      /* wwEditor:end */
+    },
+    ganttTodayLineColor: {
+      label: { en: 'Today line color' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#0d9488',
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: { cssSupports: 'color', type: 'string', tooltip: 'Today indicator line and label colour' },
       /* wwEditor:end */
     },
   },
