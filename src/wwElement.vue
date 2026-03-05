@@ -114,16 +114,27 @@
                 <div
                   v-for="(bar, bi) in ganttData[proj.id].bars"
                   :key="bi"
-                  class="gdm-gantt__bar"
+                  class="gdm-gantt__bar-wrap"
                   :style="{
                     left: bar.left + '%',
                     width: bar.width + '%',
                     top: (bi * ROW_H + 4) + 'px',
-                    background: bar.color || '#94a3b8',
                   }"
-                  :title="bar.label + '\n' + fmtShort(bar.start_date) + ' → ' + fmtShort(bar.end_date)"
                 >
-                  <span class="gdm-gantt__bar-label">{{ bar.label }}</span>
+                  <div class="gdm-gantt__bar" :style="{ background: bar.color || '#94a3b8' }">
+                    <span class="gdm-gantt__bar-label">{{ bar.label }}</span>
+                  </div>
+                  <div class="gdm-gantt__tip">
+                    <p class="gdm-gantt__tip-label">{{ bar.label }}</p>
+                    <div class="gdm-gantt__tip-dates">
+                      <span class="gdm-gantt__tip-date">
+                        <svg viewBox="0 0 12 12" fill="none" class="gdm-gantt__tip-icon"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.1"/><path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+                        {{ fmtShort(bar.start_date) }}
+                      </span>
+                      <span class="gdm-gantt__tip-arrow">→</span>
+                      <span class="gdm-gantt__tip-date">{{ fmtShort(bar.end_date) }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -757,12 +768,21 @@ export default {
   line-height: 1.6;
 }
 
-/* Chart body */
+/* Chart body — overflow visible so tooltips can poke above bars */
 .gdm-gantt__body {
   position: relative;
   background: #f8fafc;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
+  /* Clip just the background, not children, using a box-shadow trick */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    background: #f8fafc;
+    z-index: 0;
+  }
 }
 
 .gdm-gantt__dayline {
@@ -772,6 +792,7 @@ export default {
   width: 1px;
   background: #eef1f5;
   z-index: 1;
+  pointer-events: none;
 }
 
 .gdm-gantt__gridline {
@@ -781,6 +802,7 @@ export default {
   width: 1px;
   background: #d8e0ea;
   z-index: 2;
+  pointer-events: none;
 }
 
 .gdm-gantt__today-line {
@@ -793,24 +815,31 @@ export default {
   z-index: 3;
 }
 
-/* Gantt bar */
-.gdm-gantt__bar {
+/* Bar wrapper — handles position + hover group */
+.gdm-gantt__bar-wrap {
   position: absolute;
   height: 22px;
+  z-index: 2;
+  cursor: default;
+
+  &:hover {
+    z-index: 10;
+
+    .gdm-gantt__bar { opacity: 1; filter: brightness(1.06); }
+    .gdm-gantt__tip { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+  }
+}
+
+/* Visual bar */
+.gdm-gantt__bar {
+  width: 100%;
+  height: 100%;
   border-radius: 5px;
   display: flex;
   align-items: center;
   overflow: hidden;
-  z-index: 2;
   opacity: 0.88;
   transition: opacity 0.15s, filter 0.15s;
-  cursor: default;
-
-  &:hover {
-    opacity: 1;
-    filter: brightness(1.05);
-    z-index: 4;
-  }
 }
 
 .gdm-gantt__bar-label {
@@ -824,6 +853,73 @@ export default {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   pointer-events: none;
   letter-spacing: 0.01em;
+}
+
+/* Tooltip */
+.gdm-gantt__tip {
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  min-width: 180px;
+  max-width: 280px;
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 100;
+  white-space: normal;
+
+  /* Arrow pointing down */
+  &::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #1e293b;
+  }
+}
+
+.gdm-gantt__tip-label {
+  margin: 0 0 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.gdm-gantt__tip-dates {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.gdm-gantt__tip-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.gdm-gantt__tip-icon {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.gdm-gantt__tip-arrow {
+  font-size: 0.6875rem;
+  color: #475569;
 }
 
 .gdm-gantt__empty {
