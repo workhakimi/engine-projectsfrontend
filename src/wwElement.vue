@@ -65,11 +65,7 @@
 
         <!-- ── Gantt chart ── -->
         <div v-if="ganttData[proj.id] && editingId !== proj.id" class="gdm-gantt">
-          <div class="gdm-gantt__scroll-wrap">
-            <div
-              class="gdm-gantt__inner"
-              :style="{ minWidth: ganttData[proj.id].minWidth + 'px' }"
-            >
+          <div class="gdm-gantt__inner">
               <!-- Row 1: week date labels (clean, no indicators) -->
               <div class="gdm-gantt__head gdm-gantt__head--weeks">
                 <div
@@ -160,7 +156,6 @@
                   </div>
                 </div>
               </div>
-            </div>
           </div>
         </div>
 
@@ -419,7 +414,6 @@ const computeGantt = (rows, milestones = []) => {
     bars,
     todayPct,
     milestones: milestoneMarkers,
-    minWidth: Math.max(540, weeks.length * 70),
   };
 };
 
@@ -803,19 +797,9 @@ export default {
   margin-top: 0.25rem;
 }
 
-.gdm-gantt__scroll-wrap {
-  overflow-x: auto;
-  overflow-y: visible;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 6px;
-
-  &::-webkit-scrollbar { height: 3px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
-}
-
 .gdm-gantt__inner {
   position: relative;
+  width: 100%;
   overflow: visible;
 }
 
