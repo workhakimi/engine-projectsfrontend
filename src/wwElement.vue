@@ -70,7 +70,7 @@
               class="gdm-gantt__inner"
               :style="{ minWidth: ganttData[proj.id].minWidth + 'px' }"
             >
-              <!-- Row 1: week date labels -->
+              <!-- Row 1: week date labels (clean, no indicators) -->
               <div class="gdm-gantt__head gdm-gantt__head--weeks">
                 <div
                   v-for="wk in ganttData[proj.id].visWeeks"
@@ -80,7 +80,7 @@
                 >{{ wk.label }}</div>
               </div>
 
-              <!-- Row 2: day-letter labels (S M T W T F S) -->
+              <!-- Row 2: day-letter labels (S M T W T F S) — no Today here -->
               <div class="gdm-gantt__head gdm-gantt__head--days">
                 <div
                   v-for="day in ganttData[proj.id].days"
@@ -92,7 +92,10 @@
                   }"
                   :style="{ left: day.pct + '%' }"
                 >{{ day.letter }}</div>
-                <!-- Today label — lives here, centred on today column -->
+              </div>
+
+              <!-- Row 3: dedicated indicator strip — Today only -->
+              <div class="gdm-gantt__head gdm-gantt__head--indicators">
                 <div
                   v-if="ganttData[proj.id].todayPct >= 0 && ganttData[proj.id].todayPct <= 100"
                   class="gdm-gantt__today-tag"
@@ -100,19 +103,19 @@
                 >Today</div>
               </div>
 
-              <!-- Chart body: grid + bars + today line + milestones -->
+              <!-- Chart body: grid + bars + today line + milestones (labels at bottom) -->
               <div
                 class="gdm-gantt__body"
                 :style="{ height: ganttData[proj.id].bars.length * ROW_H + 10 + 'px' }"
               >
-                <!-- Day lines (light sub-grid) -->
+                <!-- Day lines -->
                 <div
                   v-for="day in ganttData[proj.id].days"
                   :key="'dl' + day.ts"
                   class="gdm-gantt__dayline"
                   :style="{ left: day.pct + '%' }"
                 />
-                <!-- Week grid lines (slightly stronger) -->
+                <!-- Week grid lines -->
                 <div
                   v-for="wk in ganttData[proj.id].visWeeks"
                   :key="'gl' + wk.ts"
@@ -125,7 +128,7 @@
                   class="gdm-gantt__today-line"
                   :style="{ left: ganttData[proj.id].todayPct + '%' }"
                 />
-                <!-- Bars -->
+                <!-- Bars — tooltip rendered via fixed overlay outside scroll -->
                 <div
                   v-for="(bar, bi) in ganttData[proj.id].bars"
                   :key="bi"
@@ -135,31 +138,23 @@
                     width: bar.width + '%',
                     top: (bi * ROW_H + 4) + 'px',
                   }"
+                  @mouseenter="showTip(bar, $event)"
+                  @mousemove="moveTip($event)"
+                  @mouseleave="hideTip"
                 >
                   <div class="gdm-gantt__bar" :style="{ background: bar.color || '#94a3b8' }">
                     <span class="gdm-gantt__bar-label">{{ bar.label }}</span>
                   </div>
-                  <div class="gdm-gantt__tip">
-                    <p class="gdm-gantt__tip-label">{{ bar.label }}</p>
-                    <div class="gdm-gantt__tip-dates">
-                      <span class="gdm-gantt__tip-date">
-                        <svg viewBox="0 0 12 12" fill="none" class="gdm-gantt__tip-icon"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.1"/><path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
-                        {{ fmtShort(bar.start_date) }}
-                      </span>
-                      <span class="gdm-gantt__tip-arrow">→</span>
-                      <span class="gdm-gantt__tip-date">{{ fmtShort(bar.end_date) }}</span>
-                    </div>
-                  </div>
                 </div>
 
-                <!-- Milestone markers -->
+                <!-- Milestone markers: line full height, label BELOW body -->
                 <div
                   v-for="(ms, mi) in ganttData[proj.id].milestones"
                   :key="'ms' + mi"
                   class="gdm-gantt__milestone"
                   :style="{ left: ms.pct + '%' }"
                 >
-                  <div class="gdm-gantt__ms-line" :style="{ borderColor: ms.color || '#64748b' }" />
+                  <div class="gdm-gantt__ms-line" :style="{ borderLeftColor: ms.color || '#64748b' }" />
                   <div class="gdm-gantt__ms-label" :style="{ color: ms.color || '#64748b', borderColor: ms.color || '#64748b' }">
                     {{ ms.label }}
                   </div>
@@ -263,6 +258,27 @@
     </div>
 
   </div>
+
+  <!-- ═══ Fixed bar tooltip (outside scroll/overflow context) ═══ -->
+  <div
+    v-if="tipBar"
+    class="gdm-gantt__tip-fixed"
+    :style="{ top: tipY + 'px', left: tipX + 'px' }"
+  >
+    <p class="gdm-gantt__tip-label">{{ tipBar.label }}</p>
+    <div class="gdm-gantt__tip-dates">
+      <span class="gdm-gantt__tip-date">
+        <svg viewBox="0 0 12 12" fill="none" class="gdm-gantt__tip-icon">
+          <rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.1"/>
+          <path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+        </svg>
+        {{ fmtShort(tipBar.start_date) }}
+      </span>
+      <span class="gdm-gantt__tip-arrow">→</span>
+      <span class="gdm-gantt__tip-date">{{ fmtShort(tipBar.end_date) }}</span>
+    </div>
+  </div>
+
 </template>
 
 <script>
@@ -542,6 +558,22 @@ export default {
       colorPickerIdx.value = -1;
     };
 
+    /* ─── Tooltip (fixed, outside scroll context) ─── */
+    const tipBar = ref(null);
+    const tipX   = ref(0);
+    const tipY   = ref(0);
+
+    const showTip = (bar, e) => {
+      tipBar.value = bar;
+      tipX.value = e.clientX + 14;
+      tipY.value = e.clientY - 64;
+    };
+    const moveTip = (e) => {
+      tipX.value = e.clientX + 14;
+      tipY.value = e.clientY - 64;
+    };
+    const hideTip = () => { tipBar.value = null; };
+
     /* ─── Global click to close palette ─── */
     onMounted(() => document.addEventListener('click', closeColorPicker));
     onUnmounted(() => document.removeEventListener('click', closeColorPicker));
@@ -604,6 +636,7 @@ export default {
       cardStyles,
       COLOR_PALETTE,
       ROW_H,
+      tipBar, tipX, tipY, showTip, moveTip, hideTip,
     };
   },
 };
@@ -793,12 +826,18 @@ export default {
 
   &--weeks {
     height: 18px;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
   }
 
   &--days {
-    height: 18px;
-    margin-bottom: 4px;
+    height: 14px;
+    margin-bottom: 1px;
+  }
+
+  /* Dedicated indicator strip — just Today pill */
+  &--indicators {
+    height: 16px;
+    margin-bottom: 3px;
   }
 }
 
@@ -827,16 +866,13 @@ export default {
   letter-spacing: 0;
 
   &--weekend { color: #dde3ea; }
-  &--today {
-    color: var(--gdm-accent);
-    font-weight: 700;
-  }
+  &--today { color: var(--gdm-accent); font-weight: 700; }
 }
 
-/* Today pill — sits in the day-letter row, floats above so it doesn't overlap */
+/* Today pill — lives in its own indicator row, never overlaps labels */
 .gdm-gantt__today-tag {
   position: absolute;
-  top: -1px;
+  top: 1px;
   transform: translateX(-50%);
   font-size: 0.5rem;
   font-weight: 700;
@@ -845,11 +881,11 @@ export default {
   color: var(--gdm-accent);
   background: color-mix(in srgb, var(--gdm-accent) 10%, #fff 90%);
   border: 1px solid color-mix(in srgb, var(--gdm-accent) 30%, transparent);
-  padding: 1px 4px;
+  padding: 1px 5px;
   border-radius: 3px;
   z-index: 20;
   white-space: nowrap;
-  line-height: 1.7;
+  line-height: 1.8;
   pointer-events: none;
 }
 
@@ -900,19 +936,14 @@ export default {
   z-index: 3;
 }
 
-/* Bar wrapper — handles position + hover group */
+/* Bar wrapper */
 .gdm-gantt__bar-wrap {
   position: absolute;
   height: 22px;
   z-index: 2;
   cursor: default;
 
-  &:hover {
-    z-index: 10;
-
-    .gdm-gantt__bar { opacity: 1; filter: brightness(1.06); }
-    .gdm-gantt__tip { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
-  }
+  &:hover .gdm-gantt__bar { opacity: 1; filter: brightness(1.06); }
 }
 
 /* Visual bar */
@@ -940,38 +971,22 @@ export default {
   letter-spacing: 0.01em;
 }
 
-/* Tooltip */
-.gdm-gantt__tip {
-  position: absolute;
-  bottom: calc(100% + 9px);
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
+/* Fixed tooltip — rendered at component root, never clipped by scroll */
+.gdm-gantt__tip-fixed {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
   min-width: 180px;
   max-width: 280px;
   background: #1e293b;
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.1);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-  z-index: 100;
   white-space: normal;
-
-  /* Arrow pointing down */
-  &::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 5px solid transparent;
-    border-top-color: #1e293b;
-  }
 }
 
 .gdm-gantt__tip-label {
-  margin: 0 0 0.375rem;
+  margin: 0 0 0.35rem;
   font-size: 0.75rem;
   font-weight: 600;
   color: #f1f5f9;
@@ -995,17 +1010,8 @@ export default {
   color: #94a3b8;
 }
 
-.gdm-gantt__tip-icon {
-  width: 11px;
-  height: 11px;
-  flex-shrink: 0;
-  color: #64748b;
-}
-
-.gdm-gantt__tip-arrow {
-  font-size: 0.6875rem;
-  color: #475569;
-}
+.gdm-gantt__tip-icon { width: 11px; height: 11px; flex-shrink: 0; color: #64748b; }
+.gdm-gantt__tip-arrow { font-size: 0.6875rem; color: #475569; }
 
 /* ─── Milestone markers ─── */
 .gdm-gantt__milestone {
@@ -1014,6 +1020,7 @@ export default {
   bottom: 0;
   z-index: 5;
   pointer-events: none;
+  overflow: visible;
 }
 
 .gdm-gantt__ms-line {
@@ -1022,13 +1029,14 @@ export default {
   bottom: 0;
   left: 0;
   width: 0;
-  border-left: 2px dashed currentColor;
-  opacity: 0.75;
+  border-left: 2px dashed;
+  opacity: 0.8;
 }
 
+/* Label sits BELOW the body — positive top offset from bottom of milestone element */
 .gdm-gantt__ms-label {
   position: absolute;
-  bottom: calc(100% + 2px);
+  top: calc(100% + 4px);
   left: 50%;
   transform: translateX(-50%);
   font-size: 0.5625rem;
@@ -1037,10 +1045,10 @@ export default {
   letter-spacing: 0.06em;
   white-space: nowrap;
   background: #fff;
-  border: 1px solid currentColor;
+  border: 1px solid;
   border-radius: 3px;
   padding: 1px 5px;
-  opacity: 0.9;
+  line-height: 1.6;
   pointer-events: none;
 }
 
