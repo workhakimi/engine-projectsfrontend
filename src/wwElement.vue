@@ -90,7 +90,14 @@
                 class="gdm-gantt__body"
                 :style="{ height: ganttData[proj.id].bars.length * ROW_H + 10 + 'px' }"
               >
-                <!-- Grid lines -->
+                <!-- Day lines (light sub-grid) -->
+                <div
+                  v-for="day in ganttData[proj.id].days"
+                  :key="'dl' + day.ts"
+                  class="gdm-gantt__dayline"
+                  :style="{ left: day.pct + '%' }"
+                />
+                <!-- Week grid lines (slightly stronger) -->
                 <div
                   v-for="wk in ganttData[proj.id].visWeeks"
                   :key="'gl' + wk.ts"
@@ -311,6 +318,15 @@ const computeGantt = (rows) => {
 
   const todayPct = ((Date.now() - minDate.getTime()) / totalMs) * 100;
 
+  // Daily tick positions (for light sub-grid lines)
+  const days = [];
+  let dayCur = new Date(minDate);
+  while (dayCur.getTime() < maxDate.getTime()) {
+    const pct = ((dayCur.getTime() - minDate.getTime()) / totalMs) * 100;
+    days.push({ ts: dayCur.getTime(), pct });
+    dayCur = new Date(dayCur.getTime() + 86400000);
+  }
+
   const bars = rows.map(r => {
     if (!r.start_date || !r.end_date) return { ...r, left: 0, width: 0 };
     const s = new Date(r.start_date).getTime();
@@ -323,6 +339,7 @@ const computeGantt = (rows) => {
   return {
     weeks,
     visWeeks,
+    days,
     bars,
     todayPct,
     minWidth: Math.max(540, weeks.length * 70),
@@ -748,13 +765,22 @@ export default {
   overflow: hidden;
 }
 
+.gdm-gantt__dayline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #eef1f5;
+  z-index: 1;
+}
+
 .gdm-gantt__gridline {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
-  background: #e8edf2;
-  z-index: 1;
+  background: #d8e0ea;
+  z-index: 2;
 }
 
 .gdm-gantt__today-line {
