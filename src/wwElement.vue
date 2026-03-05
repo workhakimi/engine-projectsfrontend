@@ -90,40 +90,40 @@
                 >{{ day.letter }}</div>
               </div>
 
-              <!-- Row 3: dedicated indicator strip — Today only -->
-              <div class="gdm-gantt__head gdm-gantt__head--indicators">
-                <div
-                  v-if="ganttData[proj.id].todayPct >= 0 && ganttData[proj.id].todayPct <= 100"
-                  class="gdm-gantt__today-tag"
-                  :style="{ left: ganttData[proj.id].todayPct + '%' }"
-                >Today</div>
-              </div>
-
               <!-- Chart body: grid + bars + today line + milestones (labels at bottom) -->
               <div
                 class="gdm-gantt__body"
                 :style="{ height: ganttData[proj.id].bars.length * ROW_H + 10 + 'px' }"
               >
-                <!-- Day lines -->
+                <!-- Day lines — lightest -->
                 <div
                   v-for="day in ganttData[proj.id].days"
                   :key="'dl' + day.ts"
                   class="gdm-gantt__dayline"
                   :style="{ left: day.pct + '%' }"
                 />
-                <!-- Week grid lines -->
+                <!-- Week lines (Mondays) — medium -->
                 <div
-                  v-for="wk in ganttData[proj.id].visWeeks"
-                  :key="'gl' + wk.ts"
-                  class="gdm-gantt__gridline"
+                  v-for="wk in ganttData[proj.id].weeks"
+                  :key="'wl' + wk.ts"
+                  class="gdm-gantt__weekline"
                   :style="{ left: wk.pct + '%' }"
                 />
-                <!-- Today line -->
+                <!-- Month lines — darkest, thickest -->
+                <div
+                  v-for="mo in ganttData[proj.id].months"
+                  :key="'mo' + mo.ts"
+                  class="gdm-gantt__monthline"
+                  :style="{ left: mo.pct + '%' }"
+                />
+                <!-- Today line with inline label -->
                 <div
                   v-if="ganttData[proj.id].todayPct >= 0 && ganttData[proj.id].todayPct <= 100"
                   class="gdm-gantt__today-line"
                   :style="{ left: ganttData[proj.id].todayPct + '%' }"
-                />
+                >
+                  <span class="gdm-gantt__today-tag">Today</span>
+                </div>
                 <!-- Bars — tooltip rendered via fixed overlay outside scroll -->
                 <div
                   v-for="(bar, bi) in ganttData[proj.id].bars"
@@ -394,14 +394,13 @@ const computeGantt = (rows, milestones = []) => {
   });
 
   const minDate = mondayOf(new Date(Math.min(...allMsDates)));
-  // End: Monday of the week after the last date — tight, no excess padding
-  const maxDate = mondayOf(new Date(Math.max(...allMsDates)));
-  maxDate.setDate(maxDate.getDate() + 7);
+  // End: exactly the last data date + 1 day so the final bar/milestone sits flush at the right edge
+  const maxDate = new Date(Math.max(...allMsDates) + 86400000);
 
   const totalMs = maxDate.getTime() - minDate.getTime();
   if (totalMs <= 0) return null;
 
-  // Generate weekly ticks
+  // Generate weekly ticks (Mondays)
   const weeks = [];
   let cur = new Date(minDate);
   while (cur.getTime() < maxDate.getTime()) {
@@ -413,7 +412,7 @@ const computeGantt = (rows, milestones = []) => {
     cur = new Date(cur.getTime() + 7 * 86400000);
   }
 
-  // Visible week labels — show every Nth so they don't crowd
+  // Visible week labels — skip crowded ones
   const visWeeks = [];
   let lastPct = -Infinity;
   for (const wk of weeks) {
@@ -425,7 +424,16 @@ const computeGantt = (rows, milestones = []) => {
 
   const todayPct = ((Date.now() - minDate.getTime()) / totalMs) * 100;
 
-  // Daily ticks — for grid lines and day-letter header
+  // Month-start ticks — 1st of each month in range
+  const months = [];
+  let mCur = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+  while (mCur.getTime() <= maxDate.getTime()) {
+    const pct = ((mCur.getTime() - minDate.getTime()) / totalMs) * 100;
+    months.push({ ts: mCur.getTime(), pct });
+    mCur = new Date(mCur.getFullYear(), mCur.getMonth() + 1, 1);
+  }
+
+  // Daily ticks — grid lines and day-letter header
   const days = [];
   let dayCur = new Date(minDate);
   while (dayCur.getTime() < maxDate.getTime()) {
@@ -434,7 +442,7 @@ const computeGantt = (rows, milestones = []) => {
       ts: dayCur.getTime(),
       pct,
       letter: DAY_LETTERS[dayCur.getDay()],
-      isWeekStart: dayCur.getDay() === 1, // Monday
+      isMonday: dayCur.getDay() === 1,
     });
     dayCur = new Date(dayCur.getTime() + 86400000);
   }
@@ -448,7 +456,6 @@ const computeGantt = (rows, milestones = []) => {
     return { ...r, left: Math.max(0, left), width: Math.max(1, width) };
   });
 
-  // Milestone positions
   const milestoneMarkers = (milestones || [])
     .filter(m => m.date)
     .map(m => {
@@ -461,6 +468,7 @@ const computeGantt = (rows, milestones = []) => {
   return {
     weeks,
     visWeeks,
+    months,
     days,
     bars,
     todayPct,
@@ -888,13 +896,7 @@ export default {
 
   &--days {
     height: 14px;
-    margin-bottom: 1px;
-  }
-
-  /* Dedicated indicator strip — just Today pill */
-  &--indicators {
-    height: 16px;
-    margin-bottom: 3px;
+    margin-bottom: 4px;
   }
 }
 
@@ -926,21 +928,22 @@ export default {
   &--today { color: var(--gdm-accent); font-weight: 700; }
 }
 
-/* Today pill — lives in its own indicator row, never overlaps labels */
+/* Today pill — sits at the top of the today-line, inside the body */
 .gdm-gantt__today-tag {
   position: absolute;
-  top: 1px;
+  top: 4px;
+  left: 50%;
   transform: translateX(-50%);
   font-size: 0.5rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--gdm-accent);
-  background: color-mix(in srgb, var(--gdm-accent) 10%, #fff 90%);
-  border: 1px solid color-mix(in srgb, var(--gdm-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--gdm-accent) 12%, #fff 88%);
+  border: 1px solid color-mix(in srgb, var(--gdm-accent) 35%, transparent);
   padding: 1px 5px;
   border-radius: 3px;
-  z-index: 20;
+  z-index: 10;
   white-space: nowrap;
   line-height: 1.8;
   pointer-events: none;
@@ -964,34 +967,48 @@ export default {
   }
 }
 
+/* Day lines — very light, thinnest */
 .gdm-gantt__dayline {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
-  background: #eef1f5;
+  background: #edf1f5;
   z-index: 1;
   pointer-events: none;
 }
 
-.gdm-gantt__gridline {
+/* Week lines (Mondays) — medium grey, slightly more visible */
+.gdm-gantt__weekline {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
-  background: #d8e0ea;
+  background: #c8d3de;
   z-index: 2;
   pointer-events: none;
 }
 
+/* Month lines — dark grey, thickest — most prominent structural marker */
+.gdm-gantt__monthline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #8fa3b8;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Today line — teal, above all grid lines, contains Today tag */
 .gdm-gantt__today-line {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 2px;
   background: var(--gdm-accent);
-  opacity: 0.65;
-  z-index: 3;
+  opacity: 0.75;
+  z-index: 4;
 }
 
 /* Bar wrapper */
