@@ -169,83 +169,127 @@
 
         <!-- ── Edit panel ── -->
         <div v-if="editingId === proj.id" class="gdm-edit">
-          <p class="gdm-edit__hint">Define project milestones. Each row becomes a bar on the Gantt chart.</p>
 
-          <div class="gdm-edit__rows">
-            <transition-group name="gdm-row">
-              <div v-for="(row, ri) in editRows" :key="ri" class="gdm-edit__row">
-                <span class="gdm-edit__row-idx">{{ ri + 1 }}</span>
+          <!-- ─ Section 1: Timeline rows (the bars) ─ -->
+          <div class="gdm-edit__section">
+            <div class="gdm-edit__section-head">
+              <span class="gdm-edit__section-title">Timeline rows</span>
+              <span class="gdm-edit__section-sub">Each row becomes a coloured bar on the Gantt chart</span>
+            </div>
 
-                <!-- Color swatch + picker -->
-                <div class="gdm-edit__color-cell" @click.stop>
-                  <button
-                    type="button"
-                    class="gdm-edit__color-dot"
-                    :style="{ background: row.color || '#94a3b8' }"
-                    :title="row.color"
-                    @click.stop="colorPickerIdx = colorPickerIdx === ri ? -1 : ri"
-                  />
-                  <div v-if="colorPickerIdx === ri" class="gdm-edit__palette">
+            <div class="gdm-edit__rows">
+              <transition-group name="gdm-row">
+                <div v-for="(row, ri) in editRows" :key="'row-' + ri" class="gdm-edit__row">
+                  <span class="gdm-edit__row-idx">{{ ri + 1 }}</span>
+
+                  <div class="gdm-edit__color-cell" @click.stop>
                     <button
-                      v-for="c in COLOR_PALETTE"
-                      :key="c"
                       type="button"
-                      class="gdm-edit__palette-dot"
-                      :class="{ 'gdm-edit__palette-dot--sel': row.color === c }"
-                      :style="{ background: c }"
-                      @click.stop="pickColor(ri, c)"
+                      class="gdm-edit__color-dot"
+                      :style="{ background: row.color || '#94a3b8' }"
+                      :title="row.color"
+                      @click.stop="colorPickerIdx = colorPickerIdx === ri ? -1 : ri"
                     />
+                    <div v-if="colorPickerIdx === ri" class="gdm-edit__palette">
+                      <button
+                        v-for="c in COLOR_PALETTE"
+                        :key="c"
+                        type="button"
+                        class="gdm-edit__palette-dot"
+                        :class="{ 'gdm-edit__palette-dot--sel': row.color === c }"
+                        :style="{ background: c }"
+                        @click.stop="pickColor(ri, c)"
+                      />
+                    </div>
                   </div>
+
+                  <input
+                    v-model="editRows[ri].label"
+                    type="text"
+                    class="gdm-edit__input gdm-edit__input--label"
+                    placeholder="Row label…"
+                  />
+                  <input v-model="editRows[ri].start_date" type="date" class="gdm-edit__input gdm-edit__input--date" />
+                  <span class="gdm-edit__arrow">→</span>
+                  <input v-model="editRows[ri].end_date" type="date" class="gdm-edit__input gdm-edit__input--date" />
+
+                  <button type="button" class="gdm-edit__del" title="Remove row" @click="deleteRow(ri)">
+                    <svg viewBox="0 0 16 16" fill="none" class="gdm-icon"><path d="M3 4h10M6 4V2h4v2M5 4l.5 9h5l.5-9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
                 </div>
+              </transition-group>
+            </div>
 
-                <!-- Label -->
-                <input
-                  v-model="editRows[ri].label"
-                  type="text"
-                  class="gdm-edit__input gdm-edit__input--label"
-                  placeholder="Milestone description…"
-                />
-
-                <!-- Dates -->
-                <input
-                  v-model="editRows[ri].start_date"
-                  type="date"
-                  class="gdm-edit__input gdm-edit__input--date"
-                />
-                <span class="gdm-edit__arrow">→</span>
-                <input
-                  v-model="editRows[ri].end_date"
-                  type="date"
-                  class="gdm-edit__input gdm-edit__input--date"
-                />
-
-                <!-- Delete -->
-                <button
-                  type="button"
-                  class="gdm-edit__del"
-                  title="Remove milestone"
-                  @click="deleteRow(ri)"
-                >
-                  <svg viewBox="0 0 16 16" fill="none" class="gdm-icon">
-                    <path d="M3 4h10M6 4V2h4v2M5 4l.5 9h5l.5-9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </button>
-              </div>
-            </transition-group>
-          </div>
-
-          <div class="gdm-edit__footer">
             <button type="button" class="gdm-edit__add-btn" @click="addRow">
               <svg viewBox="0 0 16 16" fill="none" class="gdm-icon"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-              Add milestone
+              Add row
             </button>
-            <div class="gdm-edit__foot-actions">
-              <button type="button" class="gdm-btn gdm-btn--ghost" @click="cancelEdit">Cancel</button>
-              <button type="button" class="gdm-btn gdm-btn--primary" @click="saveEdit(proj)">
-                <svg viewBox="0 0 16 16" fill="none" class="gdm-icon"><path d="M2 9l4 4 8-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Save changes
-              </button>
+          </div>
+
+          <div class="gdm-edit__divider" />
+
+          <!-- ─ Section 2: Milestone markers (the dashed lines) ─ -->
+          <div class="gdm-edit__section">
+            <div class="gdm-edit__section-head">
+              <span class="gdm-edit__section-title">Milestone markers</span>
+              <span class="gdm-edit__section-sub">Vertical dashed indicators — e.g. phase ends, review dates</span>
             </div>
+
+            <div class="gdm-edit__rows">
+              <transition-group name="gdm-row">
+                <div v-for="(ms, mi) in editMilestones" :key="'ms-' + mi" class="gdm-edit__row gdm-edit__row--ms">
+                  <span class="gdm-edit__row-idx">{{ mi + 1 }}</span>
+
+                  <div class="gdm-edit__color-cell" @click.stop>
+                    <button
+                      type="button"
+                      class="gdm-edit__color-dot"
+                      :style="{ background: ms.color || '#1F6FEB' }"
+                      :title="ms.color"
+                      @click.stop="msColorPickerIdx = msColorPickerIdx === mi ? -1 : mi"
+                    />
+                    <div v-if="msColorPickerIdx === mi" class="gdm-edit__palette">
+                      <button
+                        v-for="c in COLOR_PALETTE"
+                        :key="c"
+                        type="button"
+                        class="gdm-edit__palette-dot"
+                        :class="{ 'gdm-edit__palette-dot--sel': ms.color === c }"
+                        :style="{ background: c }"
+                        @click.stop="pickMilestoneColor(mi, c)"
+                      />
+                    </div>
+                  </div>
+
+                  <input
+                    v-model="editMilestones[mi].label"
+                    type="text"
+                    class="gdm-edit__input gdm-edit__input--label"
+                    placeholder="Marker label…"
+                  />
+                  <span class="gdm-edit__date-prefix">on</span>
+                  <input v-model="editMilestones[mi].date" type="date" class="gdm-edit__input gdm-edit__input--date" />
+
+                  <button type="button" class="gdm-edit__del" title="Remove marker" @click="deleteMilestone(mi)">
+                    <svg viewBox="0 0 16 16" fill="none" class="gdm-icon"><path d="M3 4h10M6 4V2h4v2M5 4l.5 9h5l.5-9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+              </transition-group>
+            </div>
+
+            <button type="button" class="gdm-edit__add-btn gdm-edit__add-btn--ms" @click="addMilestone">
+              <svg viewBox="0 0 16 16" fill="none" class="gdm-icon"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Add marker
+            </button>
+          </div>
+
+          <!-- ─ Footer ─ -->
+          <div class="gdm-edit__footer">
+            <button type="button" class="gdm-btn gdm-btn--ghost" @click="cancelEdit">Cancel</button>
+            <button type="button" class="gdm-btn gdm-btn--primary" @click="saveEdit(proj)">
+              <svg viewBox="0 0 16 16" fill="none" class="gdm-icon"><path d="M2 9l4 4 8-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Save changes
+            </button>
           </div>
         </div>
 
@@ -279,7 +323,7 @@
 <script>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 
-const ROW_H = 28; // px per gantt row slot
+const ROW_H = 34; // px per gantt row slot
 
 const COLOR_PALETTE = [
   '#9FB6CC', '#7BA3C0', '#4A90C4', '#2563EB',
@@ -494,11 +538,16 @@ export default {
     };
 
     /* ─── Edit state ─── */
-    const editingId = ref(null);
-    const editRows = ref([]);
-    const colorPickerIdx = ref(-1);
+    const editingId          = ref(null);
+    const editRows           = ref([]);
+    const editMilestones     = ref([]);
+    const colorPickerIdx     = ref(-1);   // for rows
+    const msColorPickerIdx   = ref(-1);   // for milestone markers
 
-    const closeColorPicker = () => { colorPickerIdx.value = -1; };
+    const closeColorPicker = () => {
+      colorPickerIdx.value = -1;
+      msColorPickerIdx.value = -1;
+    };
 
     const toggleEdit = (proj) => {
       /* wwEditor:start */
@@ -508,21 +557,28 @@ export default {
         cancelEdit();
         return;
       }
-      const rows = getRows(proj);
-      editRows.value = rows.map(r => ({
+      editRows.value = getRows(proj).map(r => ({
         color: r.color || '#94a3b8',
         label: r.label || '',
         start_date: toDateInput(r.start_date),
         end_date: toDateInput(r.end_date),
       }));
+      editMilestones.value = getMilestones(proj).map(m => ({
+        color: m.color || '#1F6FEB',
+        label: m.label || '',
+        date: toDateInput(m.date),
+      }));
       editingId.value = proj.id;
       colorPickerIdx.value = -1;
+      msColorPickerIdx.value = -1;
     };
 
     const cancelEdit = () => {
       editingId.value = null;
       editRows.value = [];
+      editMilestones.value = [];
       colorPickerIdx.value = -1;
+      msColorPickerIdx.value = -1;
     };
 
     const saveEdit = (proj) => {
@@ -534,22 +590,34 @@ export default {
         event: {
           value: {
             id: proj.id,
-            structure: { rows: editRows.value.map(r => ({ ...r })) },
+            structure: {
+              rows:       editRows.value.map(r => ({ ...r })),
+              milestones: editMilestones.value.map(m => ({ ...m })),
+            },
           },
         },
       });
       cancelEdit();
     };
 
+    /* ── Row helpers ── */
     const addRow = () => {
       editRows.value.push({ color: '#94a3b8', label: '', start_date: '', end_date: '' });
     };
-
     const deleteRow = (idx) => { editRows.value.splice(idx, 1); };
-
     const pickColor = (idx, color) => {
       editRows.value[idx].color = color;
       colorPickerIdx.value = -1;
+    };
+
+    /* ── Milestone marker helpers ── */
+    const addMilestone = () => {
+      editMilestones.value.push({ color: '#1F6FEB', label: '', date: '' });
+    };
+    const deleteMilestone = (idx) => { editMilestones.value.splice(idx, 1); };
+    const pickMilestoneColor = (idx, color) => {
+      editMilestones.value[idx].color = color;
+      msColorPickerIdx.value = -1;
     };
 
     /* ─── Tooltip (fixed, outside scroll context) ─── */
@@ -614,15 +682,12 @@ export default {
       ganttData,
       getRows,
       editingId,
-      editRows,
-      colorPickerIdx,
-      toggleEdit,
-      cancelEdit,
-      saveEdit,
-      addRow,
-      deleteRow,
+      editRows, editMilestones,
+      colorPickerIdx, msColorPickerIdx,
+      toggleEdit, cancelEdit, saveEdit,
+      addRow, deleteRow, pickColor,
+      addMilestone, deleteMilestone, pickMilestoneColor,
       closeColorPicker,
-      pickColor,
       normStatus,
       formatDate,
       fmtShort,
@@ -792,9 +857,10 @@ export default {
    GANTT CHART
 ═══════════════════════════════════════════════ */
 .gdm-gantt {
-  border-top: 1px solid #f1f5f9;
-  padding-top: 0.875rem;
-  margin-top: 0.25rem;
+  border-top: 1px solid #edf0f5;
+  padding-top: 1rem;
+  padding-bottom: 2.25rem; /* space for milestone labels below body */
+  margin-top: 0.375rem;
 }
 
 .gdm-gantt__inner {
@@ -873,20 +939,21 @@ export default {
   pointer-events: none;
 }
 
-/* Chart body — overflow visible so tooltips can poke above bars */
+/* Chart body */
 .gdm-gantt__body {
   position: relative;
-  background: #f8fafc;
   border-radius: 8px;
   overflow: visible;
-  /* Clip just the background, not children, using a box-shadow trick */
+  border: 1px solid #edf0f5;
+  /* Background clipped to rounded corners via pseudo-element */
   &::before {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: 8px;
+    border-radius: 7px;
     background: #f8fafc;
     z-index: 0;
+    pointer-events: none;
   }
 }
 
@@ -923,11 +990,11 @@ export default {
 /* Bar wrapper */
 .gdm-gantt__bar-wrap {
   position: absolute;
-  height: 22px;
+  height: 24px;
   z-index: 2;
   cursor: default;
 
-  &:hover .gdm-gantt__bar { opacity: 1; filter: brightness(1.06); }
+  &:hover .gdm-gantt__bar { opacity: 1; filter: brightness(1.07); box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
 }
 
 /* Visual bar */
@@ -938,19 +1005,19 @@ export default {
   display: flex;
   align-items: center;
   overflow: hidden;
-  opacity: 0.88;
-  transition: opacity 0.15s, filter 0.15s;
+  opacity: 0.9;
+  transition: opacity 0.15s, filter 0.15s, box-shadow 0.15s;
 }
 
 .gdm-gantt__bar-label {
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
+  color: rgba(255, 255, 255, 0.97);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   padding: 0 0.5rem;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   pointer-events: none;
   letter-spacing: 0.01em;
 }
@@ -1020,20 +1087,21 @@ export default {
 /* Label sits BELOW the body — positive top offset from bottom of milestone element */
 .gdm-gantt__ms-label {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
   font-size: 0.5625rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   white-space: nowrap;
   background: #fff;
-  border: 1px solid;
-  border-radius: 3px;
-  padding: 1px 5px;
-  line-height: 1.6;
+  border: 1.5px solid;
+  border-radius: 4px;
+  padding: 2px 7px;
+  line-height: 1.7;
   pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.07);
 }
 
 .gdm-gantt__empty {
@@ -1050,22 +1118,47 @@ export default {
 ═══════════════════════════════════════════════ */
 .gdm-edit {
   border-top: 1px solid #e2e8f0;
-  padding-top: 1.125rem;
+  padding-top: 1.375rem;
   margin-top: 0.875rem;
 }
 
-.gdm-edit__hint {
-  font-size: 0.8125rem;
+/* Section container */
+.gdm-edit__section {
+  margin-bottom: 0.25rem;
+}
+
+.gdm-edit__section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-bottom: 0.875rem;
+}
+
+.gdm-edit__section-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #334155;
+}
+
+.gdm-edit__section-sub {
+  font-size: 0.75rem;
   color: #94a3b8;
-  margin: 0 0 1rem;
-  line-height: 1.5;
+  line-height: 1.4;
+}
+
+.gdm-edit__divider {
+  height: 1px;
+  background: #e8edf2;
+  margin: 1.25rem 0 1.375rem;
 }
 
 .gdm-edit__rows {
   display: flex;
   flex-direction: column;
   gap: 0.4375rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .gdm-edit__row {
@@ -1174,6 +1267,13 @@ export default {
   flex-shrink: 0;
 }
 
+.gdm-edit__date-prefix {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  flex-shrink: 0;
+  font-style: italic;
+}
+
 .gdm-edit__del {
   width: 28px;
   height: 28px;
@@ -1192,15 +1292,7 @@ export default {
   &:hover { color: #ef4444; background: #fef2f2; }
 }
 
-/* Edit footer */
-.gdm-edit__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
+/* "Add row" / "Add marker" buttons — inside each section */
 .gdm-edit__add-btn {
   display: inline-flex;
   align-items: center;
@@ -1211,7 +1303,7 @@ export default {
   background: none;
   border: 1.5px dashed color-mix(in srgb, var(--gdm-accent) 40%, transparent);
   border-radius: 7px;
-  padding: 0.4rem 0.875rem;
+  padding: 0.375rem 0.875rem;
   cursor: pointer;
   pointer-events: all;
   transition: background 0.15s, border-color 0.15s;
@@ -1220,11 +1312,26 @@ export default {
     background: color-mix(in srgb, var(--gdm-accent) 8%, transparent);
     border-color: var(--gdm-accent);
   }
+
+  &--ms {
+    color: #6366f1;
+    border-color: color-mix(in srgb, #6366f1 35%, transparent);
+    &:hover {
+      background: color-mix(in srgb, #6366f1 8%, transparent);
+      border-color: #6366f1;
+    }
+  }
 }
 
-.gdm-edit__foot-actions {
+/* Edit footer — right-aligned action buttons only */
+.gdm-edit__footer {
   display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid #e8edf2;
 }
 
 /* Shared buttons */
