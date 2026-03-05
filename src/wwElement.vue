@@ -70,14 +70,29 @@
               class="gdm-gantt__inner"
               :style="{ minWidth: ganttData[proj.id].minWidth + 'px' }"
             >
-              <!-- Week header + today label -->
-              <div class="gdm-gantt__head">
+              <!-- Row 1: week date labels -->
+              <div class="gdm-gantt__head gdm-gantt__head--weeks">
                 <div
                   v-for="wk in ganttData[proj.id].visWeeks"
                   :key="wk.ts"
                   class="gdm-gantt__wk-label"
                   :style="{ left: wk.pct + '%' }"
                 >{{ wk.label }}</div>
+              </div>
+
+              <!-- Row 2: day-letter labels (S M T W T F S) -->
+              <div class="gdm-gantt__head gdm-gantt__head--days">
+                <div
+                  v-for="day in ganttData[proj.id].days"
+                  :key="'dl' + day.ts"
+                  class="gdm-gantt__day-letter"
+                  :class="{
+                    'gdm-gantt__day-letter--weekend': day.letter === 'S',
+                    'gdm-gantt__day-letter--today': Math.abs(day.pct - ganttData[proj.id].todayPct) < (100 / ganttData[proj.id].days.length / 2),
+                  }"
+                  :style="{ left: day.pct + '%' }"
+                >{{ day.letter }}</div>
+                <!-- Today label — lives here, centred on today column -->
                 <div
                   v-if="ganttData[proj.id].todayPct >= 0 && ganttData[proj.id].todayPct <= 100"
                   class="gdm-gantt__today-tag"
@@ -85,7 +100,7 @@
                 >Today</div>
               </div>
 
-              <!-- Chart body: grid + bars + today line -->
+              <!-- Chart body: grid + bars + today line + milestones -->
               <div
                 class="gdm-gantt__body"
                 :style="{ height: ganttData[proj.id].bars.length * ROW_H + 10 + 'px' }"
@@ -134,6 +149,19 @@
                       <span class="gdm-gantt__tip-arrow">→</span>
                       <span class="gdm-gantt__tip-date">{{ fmtShort(bar.end_date) }}</span>
                     </div>
+                  </div>
+                </div>
+
+                <!-- Milestone markers -->
+                <div
+                  v-for="(ms, mi) in ganttData[proj.id].milestones"
+                  :key="'ms' + mi"
+                  class="gdm-gantt__milestone"
+                  :style="{ left: ms.pct + '%' }"
+                >
+                  <div class="gdm-gantt__ms-line" :style="{ borderColor: ms.color || '#64748b' }" />
+                  <div class="gdm-gantt__ms-label" :style="{ color: ms.color || '#64748b', borderColor: ms.color || '#64748b' }">
+                    {{ ms.label }}
                   </div>
                 </div>
               </div>
@@ -274,6 +302,10 @@ const PREVIEW = [
         { color: '#5E7F5B', label: 'Client portal — billing, CMS, comms', start_date: '2026-03-23', end_date: '2026-04-20' },
         { color: '#4F6F4F', label: 'Training, final updates', start_date: '2026-04-27', end_date: '2026-05-11' },
       ],
+      milestones: [
+        { date: '2026-03-30', color: '#1F6FEB', label: 'Midpoint' },
+        { date: '2026-05-11', color: '#A142F4', label: 'Month 3 end' },
+      ],
     },
   },
 ];
@@ -287,7 +319,9 @@ const mondayOf = (d) => {
   return dt;
 };
 
-const computeGantt = (rows) => {
+const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']; // Sunday=0
+
+const computeGantt = (rows, milestones = []) => {
   const valid = rows.filter(r => r.start_date && r.end_date);
   if (!valid.length) return null;
 
@@ -317,7 +351,7 @@ const computeGantt = (rows) => {
     cur = new Date(cur.getTime() + 7 * 86400000);
   }
 
-  // Thin visible week labels — show every Nth so labels don't crowd
+  // Visible week labels — show every Nth so they don't crowd
   const visWeeks = [];
   let lastPct = -Infinity;
   for (const wk of weeks) {
@@ -329,12 +363,17 @@ const computeGantt = (rows) => {
 
   const todayPct = ((Date.now() - minDate.getTime()) / totalMs) * 100;
 
-  // Daily tick positions (for light sub-grid lines)
+  // Daily ticks — for grid lines and day-letter header
   const days = [];
   let dayCur = new Date(minDate);
   while (dayCur.getTime() < maxDate.getTime()) {
     const pct = ((dayCur.getTime() - minDate.getTime()) / totalMs) * 100;
-    days.push({ ts: dayCur.getTime(), pct });
+    days.push({
+      ts: dayCur.getTime(),
+      pct,
+      letter: DAY_LETTERS[dayCur.getDay()],
+      isWeekStart: dayCur.getDay() === 1, // Monday
+    });
     dayCur = new Date(dayCur.getTime() + 86400000);
   }
 
@@ -347,12 +386,23 @@ const computeGantt = (rows) => {
     return { ...r, left: Math.max(0, left), width: Math.max(1, width) };
   });
 
+  // Milestone positions
+  const milestoneMarkers = (milestones || [])
+    .filter(m => m.date)
+    .map(m => {
+      const ms = new Date(m.date).getTime();
+      const pct = ((ms - minDate.getTime()) / totalMs) * 100;
+      return { ...m, pct };
+    })
+    .filter(m => m.pct >= 0 && m.pct <= 100);
+
   return {
     weeks,
     visWeeks,
     days,
     bars,
     todayPct,
+    milestones: milestoneMarkers,
     minWidth: Math.max(540, weeks.length * 70),
   };
 };
@@ -404,13 +454,18 @@ export default {
       return Array.isArray(rows) ? rows.filter(r => r && (r.label || r.start_date || r.end_date)) : [];
     };
 
+    const getMilestones = (proj) => {
+      const ms = proj?.structure?.milestones;
+      return Array.isArray(ms) ? ms.filter(m => m && m.date) : [];
+    };
+
     /* ─── Gantt data map ─── */
     const ganttData = computed(() => {
       const map = {};
       for (const proj of displayProjects.value) {
         const rows = getRows(proj);
         if (rows.length > 0) {
-          const g = computeGantt(rows);
+          const g = computeGantt(rows, getMilestones(proj));
           if (g) map[proj.id] = g;
         }
       }
@@ -728,44 +783,74 @@ export default {
 
 .gdm-gantt__inner {
   position: relative;
+  overflow: visible;
 }
 
-/* Week label header */
+/* Header rows */
 .gdm-gantt__head {
   position: relative;
-  height: 20px;
-  margin-bottom: 5px;
   overflow: visible;
+
+  &--weeks {
+    height: 18px;
+    margin-bottom: 2px;
+  }
+
+  &--days {
+    height: 18px;
+    margin-bottom: 4px;
+  }
 }
 
 .gdm-gantt__wk-label {
   position: absolute;
-  top: 3px;
+  top: 2px;
   transform: translateX(3px);
   font-size: 0.6rem;
-  font-weight: 500;
-  color: #b0bec5;
+  font-weight: 600;
+  color: #94a3b8;
   white-space: nowrap;
   user-select: none;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
 }
 
-.gdm-gantt__today-tag {
+/* Day letter (S M T W T F S) */
+.gdm-gantt__day-letter {
   position: absolute;
   top: 1px;
   transform: translateX(-50%);
-  font-size: 0.5625rem;
+  font-size: 0.5rem;
+  font-weight: 600;
+  color: #c8d3de;
+  user-select: none;
+  line-height: 1;
+  letter-spacing: 0;
+
+  &--weekend { color: #dde3ea; }
+  &--today {
+    color: var(--gdm-accent);
+    font-weight: 700;
+  }
+}
+
+/* Today pill — sits in the day-letter row, floats above so it doesn't overlap */
+.gdm-gantt__today-tag {
+  position: absolute;
+  top: -1px;
+  transform: translateX(-50%);
+  font-size: 0.5rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--gdm-accent);
   background: color-mix(in srgb, var(--gdm-accent) 10%, #fff 90%);
-  border: 1px solid color-mix(in srgb, var(--gdm-accent) 28%, transparent);
-  padding: 1px 5px;
-  border-radius: 4px;
-  z-index: 10;
+  border: 1px solid color-mix(in srgb, var(--gdm-accent) 30%, transparent);
+  padding: 1px 4px;
+  border-radius: 3px;
+  z-index: 20;
   white-space: nowrap;
-  line-height: 1.6;
+  line-height: 1.7;
+  pointer-events: none;
 }
 
 /* Chart body — overflow visible so tooltips can poke above bars */
@@ -920,6 +1005,43 @@ export default {
 .gdm-gantt__tip-arrow {
   font-size: 0.6875rem;
   color: #475569;
+}
+
+/* ─── Milestone markers ─── */
+.gdm-gantt__milestone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.gdm-gantt__ms-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  border-left: 2px dashed currentColor;
+  opacity: 0.75;
+}
+
+.gdm-gantt__ms-label {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  background: #fff;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 1px 5px;
+  opacity: 0.9;
+  pointer-events: none;
 }
 
 .gdm-gantt__empty {
