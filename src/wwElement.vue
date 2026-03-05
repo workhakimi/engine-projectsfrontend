@@ -386,9 +386,16 @@ const computeGantt = (rows, milestones = []) => {
   ]).filter(n => !isNaN(n));
   if (!allMs.length) return null;
 
-  const minDate = mondayOf(new Date(Math.min(...allMs)));
-  // End: next Monday after max date, plus 1 week buffer
-  const maxDate = mondayOf(new Date(Math.max(...allMs) + 14 * 86400000));
+  // Include milestone dates so they're always in range
+  const allMsDates = [...allMs];
+  (milestones || []).filter(m => m.date).forEach(m => {
+    const t = new Date(m.date).getTime();
+    if (!isNaN(t)) allMsDates.push(t);
+  });
+
+  const minDate = mondayOf(new Date(Math.min(...allMsDates)));
+  // End: Monday of the week after the last date — tight, no excess padding
+  const maxDate = mondayOf(new Date(Math.max(...allMsDates)));
   maxDate.setDate(maxDate.getDate() + 7);
 
   const totalMs = maxDate.getTime() - minDate.getTime();
