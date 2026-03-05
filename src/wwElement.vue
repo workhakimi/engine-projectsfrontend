@@ -928,27 +928,6 @@ export default {
   &--today { color: var(--gdm-accent); font-weight: 700; }
 }
 
-/* Today pill — sits at the top of the today-line, inside the body */
-.gdm-gantt__today-tag {
-  position: absolute;
-  top: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.5rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--gdm-accent);
-  background: color-mix(in srgb, var(--gdm-accent) 12%, #fff 88%);
-  border: 1px solid color-mix(in srgb, var(--gdm-accent) 35%, transparent);
-  padding: 1px 5px;
-  border-radius: 3px;
-  z-index: 10;
-  white-space: nowrap;
-  line-height: 1.8;
-  pointer-events: none;
-}
-
 /* Chart body */
 .gdm-gantt__body {
   position: relative;
@@ -967,55 +946,78 @@ export default {
   }
 }
 
-/* Day lines — very light, thinnest */
+/* ── Grid layers (all behind bars) ──────────────────── */
+
+/* Day lines — very light, thinnest, z1 */
 .gdm-gantt__dayline {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 0; bottom: 0;
   width: 1px;
-  background: #edf1f5;
+  background: #e8eef4;
   z-index: 1;
   pointer-events: none;
 }
 
-/* Week lines (Mondays) — medium grey, slightly more visible */
+/* Week lines (Mondays) — medium grey, z2 */
 .gdm-gantt__weekline {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 0; bottom: 0;
   width: 1px;
-  background: #c8d3de;
+  background: #b8c8d8;
   z-index: 2;
   pointer-events: none;
 }
 
-/* Month lines — dark grey, thickest — most prominent structural marker */
+/* Month lines — dark slate, 2px solid, clearly structural, z3 */
 .gdm-gantt__monthline {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 0; bottom: 0;
   width: 2px;
-  background: #8fa3b8;
+  background: #546e7a;
   z-index: 3;
   pointer-events: none;
 }
 
-/* Today line — teal, above all grid lines, contains Today tag */
+/* Today line — sits behind bars, label at bottom with milestones, z3 */
 .gdm-gantt__today-line {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 0; bottom: 0;
   width: 2px;
   background: var(--gdm-accent);
-  opacity: 0.75;
-  z-index: 4;
+  opacity: 0.7;
+  z-index: 3;
+  overflow: visible;
 }
 
-/* Bar wrapper */
+/* ── Today label — at bottom of chart, same row as milestone labels ── */
+.gdm-gantt__today-tag {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--gdm-accent);
+  background: color-mix(in srgb, var(--gdm-accent) 10%, #fff 90%);
+  border: 1.5px solid color-mix(in srgb, var(--gdm-accent) 35%, transparent);
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  line-height: 1.7;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
+  z-index: 8;
+}
+
+/* ── Bars — above all grid lines ── */
+
+/* Bar wrapper z5 — on top of all grid lines */
 .gdm-gantt__bar-wrap {
   position: absolute;
   height: 24px;
-  z-index: 2;
+  z-index: 5;
   cursor: default;
 
   &:hover .gdm-gantt__bar { opacity: 1; filter: brightness(1.07); box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
@@ -1088,12 +1090,12 @@ export default {
 .gdm-gantt__tip-icon { width: 11px; height: 11px; flex-shrink: 0; color: #64748b; }
 .gdm-gantt__tip-arrow { font-size: 0.6875rem; color: #475569; }
 
-/* ─── Milestone markers ─── */
+/* ─── Milestone markers — lines behind bars, labels below at z8 ─── */
 .gdm-gantt__milestone {
   position: absolute;
   top: 0;
   bottom: 0;
-  z-index: 5;
+  z-index: 3; /* behind bars (z5) */
   pointer-events: none;
   overflow: visible;
 }
@@ -1105,10 +1107,10 @@ export default {
   left: 0;
   width: 0;
   border-left: 2px dashed;
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
-/* Label sits BELOW the body — positive top offset from bottom of milestone element */
+/* Label sits BELOW the body — same level as today tag */
 .gdm-gantt__ms-label {
   position: absolute;
   top: calc(100% + 6px);
@@ -1126,6 +1128,7 @@ export default {
   line-height: 1.7;
   pointer-events: none;
   box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+  z-index: 8;
 }
 
 .gdm-gantt__empty {
